@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Template, ClientInfo } from '../types';
 
@@ -24,8 +23,94 @@ const TitleDownloadIcon = () => (
     </svg>
 );
 
+const PreviewIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6 mr-2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639l4.443-5.41a1.012 1.012 0 011.531 0l4.443 5.41a1.012 1.012 0 010 .639l-4.443 5.41a1.012 1.012 0 01-1.531 0l-4.443-5.41z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+);
+
+const CloseIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+);
+
+
+const ContractPreviewModal: React.FC<{ instance: ContractInstance, onClose: () => void, onExportMD: () => void, onExportWord: () => void }> = ({ instance, onClose, onExportMD, onExportWord }) => {
+    const getProcessedContent = (text: string) => {
+        if (!text) return '';
+        const clientReplacedText = instance.clientInfo ?
+            text.replace(/{{CLIENTE_NOME}}/g, instance.clientInfo.name || '{{CLIENTE_NOME}}')
+                .replace(/{{CLIENTE_SITE}}/g, instance.clientInfo.site || '{{CLIENTE_SITE}}')
+                .replace(/{{CLIENTE_CNPJ}}/g, instance.clientInfo.cnpj || '{{CLIENTE_CNPJ}}')
+            : text;
+        
+        const parts = clientReplacedText.split(/({{.*?}})/g);
+        return parts.map((part, index) => {
+            if (part.match(/{{.*?}}/)) {
+                return <span key={index} className="bg-yellow-200 text-yellow-800 font-mono rounded px-1">{part}</span>;
+            }
+            return part;
+        });
+    };
+
+    return (
+        <div className="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={onClose}></div>
+                <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                    <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-2xl leading-6 font-bold text-primary flex items-center" id="modal-title">
+                                <PreviewIcon />
+                                Visualização do Contrato
+                            </h3>
+                            <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors">
+                                <CloseIcon />
+                            </button>
+                        </div>
+                        <p className="text-md text-text-light mt-1">{instance.template.name}</p>
+                    </div>
+                    
+                    <div className="px-6 py-4 h-[60vh] overflow-y-auto border-t border-b bg-gray-50">
+                        <div className="space-y-6 text-sm">
+                            {instance.template.sections.map((section, index) => (
+                                <div key={section.id || index}>
+                                    <h2 className="text-md font-semibold text-primary mb-2 uppercase tracking-wide">{section.title}</h2>
+                                    <p className="text-text-dark whitespace-pre-wrap leading-relaxed">
+                                        {getProcessedContent(instance.content[section.id] || '')}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <div className="bg-gray-100 px-4 py-4 sm:px-6 flex justify-end items-center space-x-3">
+                        <button 
+                            onClick={onExportMD}
+                            className="flex items-center bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300"
+                        >
+                            <DownloadIcon /> Exportar MD
+                        </button>
+                        <button 
+                            onClick={onExportWord}
+                            className="flex items-center bg-secondary hover:bg-accent text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300"
+                        >
+                            <DownloadIcon /> Exportar Word
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 const ExportScreen: React.FC<ExportScreenProps> = ({ templates }) => {
   const [instances, setInstances] = useState<ContractInstance[]>([]);
+  const [selectedInstance, setSelectedInstance] = useState<ContractInstance | null>(null);
 
   useEffect(() => {
     const loadedInstances: ContractInstance[] = [];
@@ -81,12 +166,10 @@ const ExportScreen: React.FC<ExportScreenProps> = ({ templates }) => {
   };
 
   const handleExportWord = (instance: ContractInstance) => {
-    // A biblioteca 'docx' é carregada via tag <script> no index.html,
-    // então ela fica disponível globalmente no objeto `window`.
     const docx = (window as any).docx;
 
     if (!docx) {
-        alert("A biblioteca de exportação para Word (docx) não foi carregada. Verifique a conexão com a internet ou o console de erros.");
+        alert("A biblioteca de exportação para Word (docx) não foi carregada.");
         return;
     }
 
@@ -104,39 +187,22 @@ const ExportScreen: React.FC<ExportScreenProps> = ({ templates }) => {
                 text: replacedContent,
                 style: "normalStyle"
             }),
-            new docx.Paragraph({ text: "" }) // Adiciona um espaço
+            new docx.Paragraph({ text: "" })
         ];
     });
 
     const doc = new docx.Document({
         styles: {
             paragraphStyles: [{
-                id: "headerStyle",
-                name: "Header Style",
-                basedOn: "Normal",
-                next: "Normal",
-                run: {
-                    bold: true,
-                    size: 28, // 14pt
-                    color: "004d40",
-                },
-                paragraph: {
-                    spacing: { after: 120 }, // 6pt
-                },
-            },
-            {
-                id: "normalStyle",
-                name: "Normal Style",
-                basedOn: "Normal",
-                run: {
-                    size: 22, // 11pt
-                },
-            }
-            ]
+                id: "headerStyle", name: "Header Style", basedOn: "Normal", next: "Normal",
+                run: { bold: true, size: 28, color: "004d40" },
+                paragraph: { spacing: { after: 120 } },
+            }, {
+                id: "normalStyle", name: "Normal Style", basedOn: "Normal",
+                run: { size: 22 },
+            }]
         },
-        sections: [{
-            children: docChildren,
-        }],
+        sections: [{ children: docChildren }],
     });
 
     docx.Packer.toBlob(doc).then((blob: Blob) => {
@@ -149,47 +215,48 @@ const ExportScreen: React.FC<ExportScreenProps> = ({ templates }) => {
       <div className="text-center mb-12">
         <div className="flex items-center justify-center gap-3">
           <TitleDownloadIcon />
-          <h1 className="text-3xl font-bold text-primary">Exportar Contratos</h1>
+          <h1 className="text-3xl font-bold text-primary">Gerar e Exportar Contratos</h1>
         </div>
-        <p className="mt-3 text-lg text-text-light">Visualize seus rascunhos e exporte o documento final.</p>
+        <p className="mt-3 text-lg text-text-light">Visualize seus contratos preenchidos e exporte o documento final.</p>
       </div>
       {instances.length > 0 ? (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {instances.map((instance) => (
             <div
               key={instance.template.id}
-              className="bg-base-100 p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+              className="bg-base-100 p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between hover:shadow-md transition-shadow"
             >
               <div>
                 <h3 className="text-lg font-bold text-primary">{instance.template.name}</h3>
-                <p className="mt-1 text-sm text-text-light">Rascunho em preenchimento.</p>
+                <p className="mt-1 text-sm text-text-light">
+                    {instance.clientInfo?.name ? `Preenchido para: ${instance.clientInfo.name}` : 'Contrato preenchido.'}
+                </p>
               </div>
-              <div className="flex space-x-3 flex-shrink-0">
-                <button 
-                  onClick={() => handleExportMD(instance)}
-                  className="flex items-center bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300"
-                >
-                  <DownloadIcon />
-                  MD
-                </button>
-                <button 
-                  onClick={() => handleExportWord(instance)}
-                  className="flex items-center bg-secondary hover:bg-accent text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300"
-                >
-                 <DownloadIcon />
-                  Word
-                </button>
-              </div>
+              <button
+                onClick={() => setSelectedInstance(instance)}
+                className="mt-4 w-full bg-secondary hover:bg-accent text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300"
+              >
+                Visualizar e Exportar
+              </button>
             </div>
           ))}
         </div>
       ) : (
         <div className="text-center py-16 px-6 bg-base-100 rounded-xl shadow-sm border border-gray-200">
-            <h2 className="text-2xl font-semibold text-primary">Nenhum Rascunho Encontrado</h2>
+            <h2 className="text-2xl font-semibold text-primary">Nenhum Contrato Encontrado</h2>
             <p className="mt-2 text-text-light">
-                Comece a preencher um documento na aba <span className="font-semibold text-secondary">'Preencher'</span>. Seu progresso aparecerá aqui.
+                Seu progresso de preenchimento de contratos aparecerá aqui.
             </p>
         </div>
+      )}
+      
+      {selectedInstance && (
+        <ContractPreviewModal
+          instance={selectedInstance}
+          onClose={() => setSelectedInstance(null)}
+          onExportMD={() => handleExportMD(selectedInstance)}
+          onExportWord={() => handleExportWord(selectedInstance)}
+        />
       )}
     </div>
   );

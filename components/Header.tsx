@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 const FileTextIcon = () => (
@@ -45,7 +44,7 @@ const Header: React.FC<HeaderProps> = ({ activeView, onSetView }) => {
               Gerenciar Modelos
             </button>
             <button onClick={() => onSetView('exportar')} className={getTabClass('exportar')}>
-              Rascunhos & Exportar
+              Gerar e Exportar
             </button>
           </nav>
         </div>
