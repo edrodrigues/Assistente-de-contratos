@@ -1,0 +1,5 @@
+{
+  "name": "Assistente de Contratos V-Lab & UFPE",
+  "description": "Uma aplicação web para auxiliar na criação e gerenciamento de contratos administrativos de cooperação entre V-Lab e UFPE, com a inteligência do Gemini para guiar o preenchimento e tirar dúvidas.",
+  "requestFramePermissions": []
+}
