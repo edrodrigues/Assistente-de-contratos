@@ -40,7 +40,12 @@ export const generateContractFromFiles = async (workPlan: string, executionTerm:
             contents: fullPrompt,
         });
 
-        return response.text;
+        const text = response.text;
+        if (!text) {
+            throw new Error("O modelo de IA não retornou texto. Tente novamente.");
+        }
+
+        return text;
     } catch (error) {
         console.error("Erro ao gerar contrato com Gemini:", error);
         throw new Error("Falha ao gerar o contrato.");
@@ -87,7 +92,7 @@ CNPJ: ${clientInfo.cnpj || 'Não informado'}
             },
         });
 
-        return response.text;
+        return response.text ?? 'Desculpe, não consegui gerar uma sugestão no momento.';
     } catch (error) {
         console.error("Erro ao gerar sugestão do Gemini:", error);
         return "Desculpe, não consegui gerar uma sugestão no momento.";

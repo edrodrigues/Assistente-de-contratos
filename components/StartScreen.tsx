@@ -28,28 +28,57 @@ interface FileInputCardProps {
     title: string;
     description: string;
     acceptedFiles: string;
-    onFileChange: (content: string) => void;
+    onFileChange: (content: string, fileName: string) => void;
     fileName: string | null;
 }
 
 const FileInputCard: React.FC<FileInputCardProps> = ({ icon, title, description, acceptedFiles, onFileChange, fileName }) => {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const fileContent = e.target?.result as string;
-                if (fileContent) {
-                    onFileChange(fileContent);
-                }
-            };
-            reader.readAsText(file);
+        if (!file) {
+            return;
         }
-        // Limpa o input para permitir o re-upload do mesmo arquivo
-        if(fileInputRef.current) {
-            fileInputRef.current.value = '';
+
+        const fileName = file.name;
+        const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+
+        try {
+            if (ext === 'docx') {
+                const mammoth = await import('mammoth');
+                const arrayBuffer = await file.arrayBuffer();
+                const result = await mammoth.extractRawText({ arrayBuffer });
+                onFileChange(result.value, fileName);
+                return;
+            }
+
+            if (ext === 'xlsx' || ext === 'xls') {
+                const XLSX = await import('xlsx');
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const csv = XLSX.utils.sheet_to_csv(firstSheet);
+                onFileChange(csv, fileName);
+                return;
+            }
+
+            await new Promise<void>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const fileContent = e.target?.result as string;
+                    if (fileContent) {
+                        onFileChange(fileContent, fileName);
+                    }
+                    resolve();
+                };
+                reader.onerror = () => resolve();
+                reader.readAsText(file);
+            });
+        } finally {
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
         }
     };
 
@@ -101,17 +130,9 @@ const StartScreen: React.FC<StartScreenProps> = ({ onGenerate, isGenerating }) =
         budget: null,
     });
     
-    const handleFileChange = useCallback((fileType: 'workPlan' | 'executionTerm' | 'budget', content: string) => {
-        const inputElement = document.querySelector(`input[type="file"][accept*="${
-            {workPlan: '.txt', executionTerm: '.doc', budget: '.xlsx'}[fileType]
-        }"]`) as HTMLInputElement;
-        
-        const file = inputElement?.files?.[0];
-
+    const handleFileChange = useCallback((fileType: 'workPlan' | 'executionTerm' | 'budget', content: string, fileName: string) => {
         setFiles(prev => ({ ...prev, [fileType]: content }));
-        if(file) {
-           setFileNames(prev => ({...prev, [fileType]: file.name}));
-        }
+        setFileNames(prev => ({ ...prev, [fileType]: fileName }));
     }, []);
 
     const handleGenerate = () => {
@@ -145,7 +166,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onGenerate, isGenerating }) =
                     title="Plano de Trabalho"
                     description="O documento que detalha os objetivos, metas e etapas do projeto. Pode ser um arquivo de texto ou PDF."
                     acceptedFiles=".txt,.pdf,.md"
-                    onFileChange={(content) => handleFileChange('workPlan', content)}
+                    onFileChange={(content, fileName) => handleFileChange('workPlan', content, fileName)}
                     fileName={fileNames.workPlan}
                 />
                 <FileInputCard
@@ -153,7 +174,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onGenerate, isGenerating }) =
                     title="Termo de Execução Descentralizada (TED)"
                     description="Documento para a gestão e acompanhamento do projeto, descrevendo o que se pretende alcançar com a descentralização dos créditos orçamentários. Inserir em WORD."
                     acceptedFiles=".doc,.docx"
-                    onFileChange={(content) => handleFileChange('executionTerm', content)}
+                    onFileChange={(content, fileName) => handleFileChange('executionTerm', content, fileName)}
                     fileName={fileNames.executionTerm}
                 />
                 <FileInputCard
@@ -161,7 +182,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onGenerate, isGenerating }) =
                     title="Planilhas de Orçamento"
                     description="Contém os detalhes financeiros, custos e alocação de recursos. Planilhas de EXCEL são aceitas."
                     acceptedFiles=".xlsx,.xls"
-                    onFileChange={(content) => handleFileChange('budget', content)}
+                    onFileChange={(content, fileName) => handleFileChange('budget', content, fileName)}
                     fileName={fileNames.budget}
                 />
             </div>

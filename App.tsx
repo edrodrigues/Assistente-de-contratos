@@ -236,7 +236,7 @@ const App: React.FC = () => {
   
   const handleBackToSelection = () => {
     setTemplateToFill(null);
-    setActiveView('inicio');
+    setActiveView('preencher');
   };
 
   const renderContent = () => {

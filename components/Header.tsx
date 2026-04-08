@@ -40,6 +40,9 @@ const Header: React.FC<HeaderProps> = ({ activeView, onSetView }) => {
             <button onClick={() => onSetView('inicio')} className={getTabClass('inicio')}>
               Comece aqui
             </button>
+            <button onClick={() => onSetView('preencher')} className={getTabClass('preencher')}>
+              Criar e Revisar
+            </button>
             <button onClick={() => onSetView('modelos')} className={getTabClass('modelos')}>
               Gerenciar Modelos
             </button>
