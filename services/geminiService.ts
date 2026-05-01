@@ -82,9 +82,6 @@ CNPJ: ${clientInfo.cnpj || 'Não informado'}
         const response: GenerateContentResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: fullPrompt,
-            config: {
-                tools: [{googleSearch: {}}],
-            },
         });
 
         return response.text;
